@@ -4,31 +4,40 @@ import {
   getUserByIdService,
   getAllUsersService,
   registerUserService,
-  findUserByIdAndDeleteService,
-  findUserByIdAndUpdateService,
+  deleteUserByIdService,
+  updateUserByIdService,
   insertManyUsersService,
   deleteAllUsersService,
+  loginService,
+  changePasswordService,
 } from "../services/User.js";
 import { serverResponse } from "../utils/serverResponse.js";
 
 export const getAllUsersController = async (req, res) => {
   try {
     const users = await getAllUsersService();
+    if (!users || users.length === 0) {
+      return serverResponse(res, 404, "Users not found");
+    }
+
     return serverResponse(res, 200, users);
   } catch (err) {
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Error fetching users",
+      error: err.message,
+    });
   }
 };
 
 export const getUserByIdController = async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return serverResponse(res, 400, "Invalid user id");
-  }
-
   try {
-    const user = await getUserByIdService(id);
+    const { userId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return serverResponse(res, 400, "Invalid user id");
+    }
+
+    const user = await getUserByIdService(userId);
 
     if (!user) {
       return serverResponse(res, 404, "User not found");
@@ -36,26 +45,40 @@ export const getUserByIdController = async (req, res) => {
 
     return serverResponse(res, 200, user);
   } catch (err) {
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Error fetching user",
+      error: err.message,
+    });
   }
 };
 
 export const registerUserController = async (req, res) => {
-  const body = req.body;
-
-  if (!body?.email || !body?.password || !body?.fullName) {
-    return serverResponse(res, 400, "Missing required fields");
-  }
-
   try {
-    const newUser = await registerUserService(body);
-    return serverResponse(res, 201, newUser);
+    const body = req.body;
+
+    if (!body?.email || !body?.password || !body?.fullName) {
+      return serverResponse(res, 400, "Missing required fields");
+    }
+
+    const result = await registerUserService(body);
+    if (!result) {
+      return serverResponse(res, 400, "error creating user");
+    }
+
+    return serverResponse(res, 201, {
+      message: "User registered successfully",
+      token: result.token,
+      user: result.user,
+    });
   } catch (err) {
     // duplicate email
     if (err.code === 11000) {
       return serverResponse(res, 400, "Email already exists");
     }
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Error registering user",
+      error: err.message,
+    });
   }
 };
 
@@ -71,32 +94,31 @@ export const insertManyUsersController = async (req, res) => {
       count: inserted.length,
     });
   } catch (err) {
-    return serverResponse(res, 500, "Failed inserting users");
+    return serverResponse(res, 500, {
+      message: "Failed inserting users",
+      error: err.message,
+    });
   }
 };
 
-export const findUserByIdAndUpdateController = async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return serverResponse(res, 400, "Invalid user id");
-  }
-
-  const allowed = new Set(["fullName", "email"]);
-
-  const incomingKeys = Object.keys(req.body);
-  const invalidKeys = incomingKeys.filter((k) => !allowed.has(k));
-
-  if (invalidKeys.length) {
-    return serverResponse(
-      res,
-      400,
-      `Invalid fields: ${invalidKeys.join(", ")}`,
-    );
-  }
-
+export const updateUserByIdController = async (req, res) => {
   try {
-    const updated = await findUserByIdAndUpdateService(id, req.body);
+    const userId = req.params.userId;
+
+    const allowed = new Set(["fullName", "email"]);
+
+    const incomingKeys = Object.keys(req.body);
+    const invalidKeys = incomingKeys.filter((k) => !allowed.has(k));
+
+    if (invalidKeys.length) {
+      return serverResponse(
+        res,
+        400,
+        `Invalid fields: ${invalidKeys.join(", ")}`,
+      );
+    }
+
+    const updated = await updateUserByIdService(userId, req.body);
 
     if (!updated) {
       return serverResponse(res, 404, "User not found");
@@ -104,19 +126,22 @@ export const findUserByIdAndUpdateController = async (req, res) => {
 
     return serverResponse(res, 200, updated);
   } catch (err) {
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Failed updating user",
+      error: err.message,
+    });
   }
 };
 
-export const findUserByIdAndDeleteController = async (req, res) => {
-  const { id } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return serverResponse(res, 400, "Invalid user id");
-  }
-
+export const deleteUserByIdController = async (req, res) => {
   try {
-    const deleted = await findUserByIdAndDeleteService(id);
+    const userId = req.params.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return serverResponse(res, 400, "Invalid user id");
+    }
+
+    const deleted = await deleteUserByIdService(userId);
 
     if (!deleted) {
       return serverResponse(res, 404, "User not found");
@@ -124,7 +149,10 @@ export const findUserByIdAndDeleteController = async (req, res) => {
 
     return serverResponse(res, 200, deleted);
   } catch (err) {
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Failed deleting user",
+      error: err.message,
+    });
   }
 };
 
@@ -136,14 +164,61 @@ export const deleteAllUsersController = async (req, res) => {
       deletedCount: result.deletedCount,
     });
   } catch (err) {
-    return serverResponse(res, 500, "Server error");
+    return serverResponse(res, 500, {
+      message: "Failed deleting users",
+      error: err.message,
+    });
   }
 };
 
-export const loginController = (req, res) => {
-  return serverResponse(res, 501, "Login service not active yet");
+export const loginController = async (req, res) => {
+  try {
+    const result = await loginService(req.body.email, req.body.password);
+
+    if (!result) {
+      return serverResponse(res, 200, "password is incorrect");
+    }
+
+    return serverResponse(res, 200, {
+      message: "Login successful",
+      token: result.token,
+      user: result.user,
+    });
+  } catch (error) {
+    return serverResponse(res, 500, {
+      message: "Error loging in to user",
+      error: error.message,
+    });
+  }
 };
 
-export const changePasswordController = (req, res) => {
-  return serverResponse(res, 501, "Change password service not active yet");
+export const changePasswordController = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newPassword, oldPassword } = req.body;
+    if (!newPassword || !oldPassword) {
+      return serverResponse(
+        res,
+        400,
+        "oldPassword or newPassword fields are missing",
+      );
+    }
+
+    const user = await changePasswordService(userId, newPassword, oldPassword);
+
+    if (!user) {
+      return serverResponse(
+        res,
+        400,
+        "an error occured - password was not changed",
+      );
+    }
+
+    return serverResponse(res, 200, { userPassValid: true, user });
+  } catch (error) {
+    return serverResponse(res, 500, {
+      message: "Error changing password for user",
+      error: error.message,
+    });
+  }
 };

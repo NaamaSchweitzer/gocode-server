@@ -3,17 +3,17 @@ import express from "express";
 import cors from "cors";
 import { connectDB } from "./DB/db.js";
 import {
-  findAllProductsController,
-  findProductByIdAndDeleteController,
-  findProductByIdAndUpdateController,
-  findProductByIdController,
-  insertProductController,
+  getAllProductsController,
+  deleteProductByIdController,
+  updateProductByIdController,
+  getProductByIdController,
+  createProductController,
   resetProductsController,
 } from "./controllers/Product.js";
 import {
   getAllUsersController,
-  findUserByIdAndDeleteController,
-  findUserByIdAndUpdateController,
+  deleteUserByIdController,
+  updateUserByIdController,
   getUserByIdController,
   insertManyUsersController,
   registerUserController,
@@ -21,6 +21,7 @@ import {
   changePasswordController,
   loginController,
 } from "./controllers/User.js";
+import { verifyToken } from "./middleware/auth.js";
 
 const port = process.env.PORT || 4000;
 const mongouri = process.env.MONGOURI; // || "";
@@ -33,51 +34,38 @@ app.use(cors());
 // -------------------- Products --------------------
 
 // GET ALL  -> find
-app.get("/api/products", findAllProductsController);
+app.get("/api/products", getAllProductsController);
 
 // GET BY ID -> findOne
-app.get("/api/products/product/:id", findProductByIdController);
+app.get("/api/products/:id", getProductByIdController);
 
 // ADD -> insert
-app.post("/api/products", insertProductController);
+app.post("/api/products", createProductController);
 
 // UPDATE -> findByIdAndUpdate
-app.put("/api/products/product/:id", findProductByIdAndUpdateController);
+app.put("/api/products/:id", updateProductByIdController);
 
 // DELETE -> findByIDAndDelete
-app.delete("/api/products/product/:id", findProductByIdAndDeleteController);
+app.delete("/api/products/:id", deleteProductByIdController);
 
 // RESET PRODUCTS -> insertMany
 app.post("/api/reset-products", resetProductsController);
 
 // -------------------- Users --------------------
 
-// GET ALL  -> find
 app.get("/api/users", getAllUsersController);
-
-// GET BY ID -> findOne
-app.get("/api/users/user/:id", getUserByIdController);
-
-// ADD -> insert
+app.get("/api/users/:userId", getUserByIdController);
 app.post("/api/users", registerUserController);
-
-// ADD ALL -> insertMany
 app.post("/api/users/bulk", insertManyUsersController);
-
-// UPDATE -> findByIdAndUpdate
-app.put("/api/users/user/:id", findUserByIdAndUpdateController);
-
-// DELETE -> findByIdAndDelete
-app.delete("/api/users/user/:id", findUserByIdAndDeleteController);
-
-// DELETE ALL -> deleteMany
+app.put("/api/users/:userId", updateUserByIdController);
+app.delete("/api/users/:userId", deleteUserByIdController);
 app.delete("/api/users", deleteAllUsersController);
-
-// LOGIN (inactive)
 app.post("/api/users/login", loginController);
-
-// CHANGE PASSWORD (inactive)
-app.post("/api/users/user/:id/change-password", changePasswordController);
+app.post(
+  "/api/users/:userId/change-password",
+  verifyToken,
+  changePasswordController,
+);
 
 // ---------------------------------------------
 

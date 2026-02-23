@@ -1,25 +1,25 @@
 import { Product } from "../models/Product.js";
 
-export const findAllProductsService = async () => {
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+export const getAllProductsService = async () => {
   return await Product.find({});
 };
 
-export const findProductByIdService = async (id) => {
-  //  if (!isValidObjectId(id)) return null;
+export const getProductByIdService = async (id) => {
+  // if (!isValidObjectId(id)) throw new Error("invalid product id");
+
   const product = await Product.findOne({ _id: id });
   return product;
 };
 
-export const insertProductService = async (data) => {
+export const createProductService = async (data) => {
   const newProduct = await Product.create(data);
   return newProduct;
 };
 
-export const findProductByIdAndUpdateService = async (id, body) => {
-  //  if (!isValidObjectId(id)) return { error: "INVALID_ID" };
-
-  // const valid = validateUpdateFields(body);
-  // if (!valid.ok) return { error: "INVALID_FIELD", badField: valid.badField };
+export const updateProductByIdService = async (id, body) => {
+  // if (!isValidObjectId(id)) throw new Error("invalid product id");
 
   const updated = await Product.findByIdAndUpdate(id, body, {
     new: true,
@@ -29,8 +29,9 @@ export const findProductByIdAndUpdateService = async (id, body) => {
   return updated; // || null;
 };
 
-export const findProductByIdAndDeleteService = async (id) => {
-  //  if (!isValidObjectId(id)) return null;
+export const deleteProductByIdService = async (id) => {
+  // if (!isValidObjectId(id)) throw new Error("invalid product id");
+  
   const deleted = await Product.findByIdAndDelete(id);
   return deleted;
 };

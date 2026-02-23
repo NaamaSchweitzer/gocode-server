@@ -1,44 +1,44 @@
 import { User } from "../models/User.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import "dotenv/config";
 
 export const getAllUsersService = async () => {
   return await User.find({});
 };
 
 export const getUserByIdService = async (id) => {
-  //  if (!isValidObjectId(id)) return null;
-  const user = await User.findOne({ _id: id });
-  return user;
+  return await User.findOne({ _id: id });
 };
 
-export const registerUserService = async (data) => {
-  const newUser = await User.create(data);
-  return newUser;
-};
+export const registerUserService = async (newUser) => {
+  const salt = bcrypt.genSaltSync(10);
+  const hash = bcrypt.hashSync(newUser.password, salt);
+  const userAfterHashing = { ...newUser, password: hash };
+  const user = new User(userAfterHashing);
+  const savedUser = await user.save();
 
-// export const registerUserService = async (newUser) => {
-//   const salt = bcrypt.genSaltSync(10);
-//   const hash = bcrypt.hashSync(newUser.password, salt);
-//   return await User.create({ ...newUser, password: hash });
-// };
+  // Create the Token immediately upon registration
+  const token = jwt.sign(
+    { id: savedUser._id, email: savedUser.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" },
+  );
+
+  // Remove password from the object we return to the controller
+  const userObject = savedUser.toObject();
+  delete userObject.password;
+
+  return { user: userObject, token };
+};
 
 export const insertManyUsersService = async (users) => {
   const inserted = await User.insertMany(users);
   return inserted;
-  // const withHash = users.map((u) => {
-  //   const salt = bcrypt.genSaltSync(10);
-  //   const hash = bcrypt.hashSync(u.password, salt);
-  //   return { ...u, password: hash };
-  // });
-
-  // return await User.insertMany(withHash);
 };
 
-export const findUserByIdAndUpdateService = async (id, body) => {
-  //  if (!isValidObjectId(id)) return { error: "INVALID_ID" };
-
-  // const valid = validateUpdateFields(body);
-  // if (!valid.ok) return { error: "INVALID_FIELD", badField: valid.badField };
+export const updateUserByIdService = async (id, body) => {
+  //  if (!isValidObjectId(id)) return null;
 
   const updated = await User.findOneAndUpdate({ _id: id }, body, {
     new: true,
@@ -48,9 +48,9 @@ export const findUserByIdAndUpdateService = async (id, body) => {
   return updated; // || null;
 };
 
-export const findUserByIdAndDeleteService = async (id) => {
+export const deleteUserByIdService = async (id) => {
   //  if (!isValidObjectId(id)) return null;
-  const deleted = await User.findOneAndDelete({ _id: id });
+  const deleted = await User.findOneAndDelete({ _id: id }).select("-password");
   //  if (!deleted) return null;
   return deleted;
 };
@@ -63,16 +63,31 @@ export const deleteAllUsersService = async () => {
 export const loginService = async (email, password) => {
   const user = await User.findOne({ email });
   if (!user) {
-    throw new Error("no user found");
+    throw new Error("user not found");
   }
   const isMatching = bcrypt.compareSync(password, user.password);
-  return isMatching;
+  if (!isMatching) {
+    throw new Error("password does not match");
+  }
+
+  // Create the Token
+  const token = jwt.sign(
+    { sub: user._id, email: user.email }, // Payload
+    process.env.JWT_SECRET, // Secret Key
+    { expiresIn: "1d" }, // Options
+  );
+
+  // Return the user (without password) and the token
+  const userObject = user.toObject();
+  delete userObject.password;
+
+  return { user: userObject, token };
 };
 
 export const changePasswordService = async (id, newPassword, oldPassword) => {
   const user = await User.findOne({ _id: id });
   if (!user) {
-    throw new Error("no user found");
+    throw new Error("user not found");
   }
   const isPasswordsMatching = bcrypt.compareSync(oldPassword, user.password);
   if (!isPasswordsMatching) {
