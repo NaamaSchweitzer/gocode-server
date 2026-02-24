@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { connectDB } from "./DB/db.js";
 import {
   getAllProductsController,
@@ -23,6 +25,9 @@ import {
 } from "./controllers/User.js";
 import { verifyToken } from "./middleware/auth.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const port = process.env.PORT || 4000;
 const mongouri = process.env.MONGOURI; // || "";
 
@@ -30,6 +35,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static("client/dist"));
 
 // -------------------- Products --------------------
 
@@ -69,10 +75,16 @@ app.post(
 
 // ---------------------------------------------
 
+app.get(/.*/, (req, res) => {
+console.log(__dirname);
+res.sendFile(__dirname + "/client/dist/index.html");
+});
+
+
 const startServer = async () => {
   await connectDB(mongouri);
   app.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
+    console.log(`🚀 Server running at port ${port}`);
   });
 };
 
