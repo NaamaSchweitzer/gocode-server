@@ -7,7 +7,6 @@ import {
   resetProductsService,
 } from "../services/Product.js";
 import { serverResponse } from "../utils/serverResponse.js";
-import { Product } from "../models/Product.js";
 import mongoose from "mongoose";
 import fs from "fs";
 
@@ -54,7 +53,16 @@ export const createProductController = async (req, res) => {
       return serverResponse(res, 400, "Missing required fields");
     }
 
-    const newProduct = await createProductService({ ...body });
+    const productData = {
+      title: body.title,
+      price: body.price,
+      description: body.description ?? "",
+      category: body.category ?? "",
+      image: body.image ?? "default.png",
+      rating: { rate: 0, count: 0 },
+    };
+
+    const newProduct = await createProductService(productData);
     return serverResponse(res, 201, newProduct);
   } catch (err) {
     return serverResponse(res, 500, {
@@ -78,7 +86,6 @@ export const updateProductByIdController = async (req, res) => {
       "description",
       "category",
       "image",
-      "rating",
     ]);
 
     const incomingKeys = Object.keys(req.body);

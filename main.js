@@ -76,10 +76,9 @@ app.post(
 // ---------------------------------------------
 
 app.get(/.*/, (req, res) => {
-console.log(__dirname);
-res.sendFile(__dirname + "/client/dist/index.html");
+  console.log(__dirname);
+  res.sendFile(__dirname + "/client/dist/index.html");
 });
-
 
 const startServer = async () => {
   await connectDB(mongouri);
